@@ -9,12 +9,34 @@ CONST
 greenpath = 39;
 redpath = 22;
 bluepath = 54;
+
+DIR_LEFT = 0;
+DIR_UP = 1;
+DIR_RIGHT = 2;
+DIR_DOWN = 3;
+
+M_SCATTER = 0;
+M_HUNT = 1;
+M_SCARED = 2;
+
+
 global
 
-ghost_colours[] = (165,200, 121,254);
+ghost_colours[] = (165,254,200, 121);
 ghost_ids[4];
+struct ghost_home[4]
+    x;
+    y;
+end = (
+    312,14,
+    9,14,
+    312,178,
+    9,178
+    );
+
 framecount =0;
 playing = 0;
+
 
 local
 dangle;
@@ -33,11 +55,12 @@ ghost_ids[x] = ghost(x);
 
 end
 
-//graph = 101 ;
-//x=160;
-//y=97;
-//flags = 4;
-
+/*
+graph = 101 ;
+x=160;
+y=97;
+flags = 4;
+*/
 
 while(!key(_space))
 frame(1000);
@@ -66,7 +89,7 @@ py;
 
 begin
 
-/*
+
 x=1;
 
 repeat
@@ -83,7 +106,7 @@ repeat
     x++;
 
 until (x==100);
-*/
+
 
 /*
 FROM x = 9 to 134;
@@ -108,10 +131,12 @@ graph = 102 ;
 x=160;
 y=97;
 //flags = 4;
-
+priority = 1;
 
 
 loop;
+delete_draw(all_drawing);
+
 frame;
 end
 
@@ -135,6 +160,7 @@ end
 process ghost(gid)
 
 private
+mode;
 pal[256];
 wait = 0;
 speed = 4;
@@ -145,8 +171,8 @@ ny = 0 ;
 ox;
 oy;
 p;
-dir = 0;
-odir = 0;
+dir = 1;
+odir = 1;
 flen = 0;
 tid;
 fc = 0;
@@ -156,7 +182,17 @@ ty = 0;
 v = false;
 tries = 5;
 dirs[4];
+num_points;
+index;
+
+struct points[100];
+x;
+y;
+
+end
+
 begin
+mode = M_HUNT;
 
 graph = new_map(16,10,8,5,0);
 map_put(file,graph,10,8,5);
@@ -172,18 +208,18 @@ convert_palette(file, graph, &pal);
 x= 160;
 if (gid == 0)
     y = 67;
-    dir = 0;
+    dir = DIR_LEFT;
     dx = -1;
 else
     y = 98;
     dx = 1;
-    wait = gid * 60;
+    wait = gid * 200;
     //odir = 1;
     ///dir = 1;
-    dir = 2;
-    odir = 2;
+    dir = DIR_RIGHT;
 
 end
+flags = 4;
 
 flen = 100 + (gid * 8);
 
@@ -202,182 +238,291 @@ loop
         //debug;
     if(playing)
 
-    if (wait > 0)
-        wait --;
-    end
+        if (wait > 0)
+            wait --;
+            //size = 50;
 
-    p = map_get_pixel(file,101,x-1,y-13);
-    map_put_pixel(file,100,x-1,y-13,redpath);
-    odir = dir;
+        else
 
-    // if we arent on a bluepath to change direction, just kep going.
-    if (p != bluepath)
-        x+=dx;
-        y+=dy;
-
-        // and go through mazes
-        if (x<-16)
-            x=336;
-        end
-
-        if (x> 336)
-            x=-16;
-        end
-
-    else
-
-        // blue path.. make some decisions
-        tx = target.x;
-        ty = target.y;
-
-
-
-        switch(gid)
-            // red ghost
-            case 0:
-
-                // target is exactly where mspacman is
-                // so do nothing
-            end
-
-
-            case 1:
-                // target is 4 whole units ahead of mspacman
-                if (target.dangle == -90000 or target.dangle == 90000)
-
-                    if(target.dangle == -90000)
-                        ty = target.y + 32;
-                    else
-                        ty = target.y - 32;
-                        tx = target.x - 64;
-                    end
-
-                else
-                    if(target.dangle == -180000)
-                        tx = target.x - 64;
-                    else
-                        tx = target.x + 64;
-                    end
-                end
-
-            end
-
-            case 2:
-                // target is the space that is double the distance from
-                // red ghost to two spaces ahead of mspacman
-
-                if (target.dangle == -90000 or target.dangle == 90000)
-
-                    if(target.dangle == -90000)
-                        ty = target.y + 16;
-                    else
-                        ty = target.y - 16;
-                        tx = target.x - 32;
-                    end
-
-                else
-                    if(target.dangle == -180000)
-                        tx = target.x - 16;
-                    else
-                        tx = target.x + 32;
-                    end
-                end
-
-                // tx acquired.. now calculate from red ghost's x
-
-                // get the distance between the two points.
-
-                p = fget_dist(ghost_ids[0].x, ghost_ids[0].y,tx,ty)*2;
-                dangle = fget_angle(ghost_ids[0].x, ghost_ids[0].y,tx,ty);
-                ox = x;
-                oy = y;
-                x = ghost_ids[0].x;
-                y = ghost_ids[0].y;
-
-
-                xadvance(dangle, p);
-                tx = x;
-                ty = y;
-                x = ox;
-                y = oy;
-            end
-
-            case 3:
-               p = get_dist(target);
-               if (p < 64)
-
-                tx = 0;
-                ty = 200;
-
-               else
-                // redundant
-                tx = target.x;
-                ty = target.y;
-               end
-            end
+            //size = 100;
 
         end
 
-
-
-
-
-
-        //if ( y == 98)
-        //    debug;
-        //end
+        p = map_get_pixel(file,101,x-1,y-13);
+        //map_put_pixel(file,100,x-1,y-13,redpath);
         odir = dir;
 
-        ox = x;
-        oy = y;
+        // if we arent on a bluepath to change direction, just kep going.
+        if (p != bluepath)
+            x+=dx;
+            y+=dy;
 
-        //dir = rand(0,3);
-        v = false;
-        tries = 5;
-
-        from p = 0 to 3;
-            dirs[p] = 0;
-        end
-
-
-
-
-        repeat
-            dir = -1;
-            if ( x > tx and dirs[0] == 0)
-                dir = 0;
+            // and go through maze exits
+            if (x<-16)
+                x=336;
             end
 
-            if ( y > ty and dirs[1] == 0)
-                dir = 1;
+            if (x> 336)
+                x=-16;
             end
 
-            if ( x < tx and dirs[2] == 0)
-                dir = 2;
-            end
+        else
 
-            if ( y < ty and dirs[3] == 0)
-                dir = 3;
-            end
+            // blue path.. make some decisions
+            tx = target.x;
+            ty = target.y;
 
-            if (dir == -1)
-                from p = 0 to 3;
-                    if (dirs[0] == 0)
-                        dir = p;
-                        break;
+
+            if ( mode == M_HUNT)
+
+            switch(gid)
+                // red ghost
+                case 0:
+
+                    // target is exactly where mspacman is
+                    // so do nothing
+                end
+
+
+                case 1:
+                    // target is 4 whole units ahead of mspacman
+                    if (target.dangle == -90000 or target.dangle == 90000)
+
+                        if(target.dangle == -90000)
+                            ty = target.y + 32;
+                        else
+                            ty = target.y - 32;
+                            tx = target.x - 64;
+                        end
+
+                    else
+                        if(target.dangle == -180000)
+                            tx = target.x - 64;
+                        else
+                            tx = target.x + 64;
+                        end
                     end
+
+                end
+
+                case 2:
+                    // target is the space that is double the distance from
+                    // red ghost to two spaces ahead of mspacman
+
+                    if (target.dangle == -90000 or target.dangle == 90000)
+
+                        if(target.dangle == -90000)
+                            ty = target.y + 16;
+                        else
+                            ty = target.y - 16;
+                            tx = target.x - 32;
+                        end
+
+                    else
+                        if(target.dangle == -180000)
+                            tx = target.x - 16;
+                        else
+                            tx = target.x + 32;
+                        end
+                    end
+
+                    // tx acquired.. now calculate from red ghost's x
+
+                    // get the distance between the two points.
+
+                    p = fget_dist(ghost_ids[0].x, ghost_ids[0].y,tx,ty)*2;
+                    dangle = fget_angle(ghost_ids[0].x, ghost_ids[0].y,tx,ty);
+                    ox = x;
+                    oy = y;
+                    x = ghost_ids[0].x;
+                    y = ghost_ids[0].y;
+
+
+                    xadvance(dangle, p);
+                    tx = x;
+                    ty = y;
+                    x = ox;
+                    y = oy;
+                end
+
+                case 3:
+                   p = get_dist(target);
+                   if (p < 64)
+
+                    tx = ghost_home[gid].x;
+                    ty = ghost_home[gid].y;
+
+                   else
+                     // redundant
+                    tx = target.x;
+                    ty = target.y;
+                   end
+                end
+
+            end
+            else
+                tx = ghost_home[gid].x;
+                ty = ghost_home[gid].y;
+            end
+
+
+
+
+
+
+            //if ( y == 98)
+            //    debug;
+            //end
+            odir = dir;
+
+            ox = x;
+            oy = y;
+
+            //dir = rand(0,3);
+            v = false;
+            tries = 5;
+
+            from p = 0 to 3;
+                dirs[p] = 0;
+                nx = x;
+                ny = y;
+                switch(p)
+                    case DIR_LEFT:
+                        nx--;
+                    end
+
+
+                    case DIR_UP:
+                        ny--;
+                    end
+
+                    case DIR_RIGHT:
+                        nx++;
+                    end
+
+                    case DIR_DOWN:
+                        ny++;
+                    end
+                end
+
+                if(map_get_pixel(file,101,nx-1,ny-13) == 0)
+                    dirs[p]=1;
                 end
             end
 
-            if (dir <0 or dir > 3 )
-                dir = odir;
+            p = (dir + 2) mod 4;
+
+            dirs[p] = 2;
+
+            //debug;
+            //p = 2 - (dir & 1)  + (dir & 1);
+
+            //dirs[p] = 1;
+
+
+
+            repeat
+                dir = -1;
+                x--;
+                y-=13;
+                num_points = path_find(1, file, 103,2,tx-1,ty-13, &points, sizeof(points));
+                x++;
+                y+=13;
+                //num_points=path_find(0,0,201,2,mouse.x,mouse.y,OFFSET points,sizeof(points));
+
+        // If a route was obtained, it shows the route and advances to the destination
+
+
+        IF (num_points>0)
+            tx = points[0].x+1;
+            ty = points[0].y+13;
+            /*
+            FOR (index=0;index<num_points-1;index++)
+                draw(1,24,15,0,points[index].x+1,points[index].y+13,points[index+1].x+1,points[index+1].y+13);
+            END
+//            IF (fget_dist(x,y,points[0].x,points[0].y)>4)
+//                xadvance(fget_angle(x,y,points[0].x,points[0].y),4);
+//            ELSE
+//                x=points[0].x;
+//                y=points[0].y;
+//            END
+            draw(1,24,15,0,x,y,points[0].x+1,points[0].y+13);
+            */
+        END
+
+
+        if ( abs(tx - x) > abs(ty - y))
+            ty = y;
+        else
+            tx = x;
+        end
+
+        dangle = MAX_INT;
+        from p = 0 to 3;
+            if (dirs[p] == 0)
+            switch(p)
+
+                case DIR_LEFT:
+                    v = fget_dist(x-1,y,tx,ty);
+                    if (v < dangle)
+                        dir = DIR_LEFT;
+                        dangle = v;
+                    end
+                end
+
+                case DIR_RIGHT:
+                    v = fget_dist(x+1,y,tx,ty);
+                    if (v < dangle)
+                        dir = DIR_RIGHT;
+                        dangle = v;
+                    end
+                end
+
+                case DIR_UP:
+                    v = fget_dist(x,y-1,tx,ty);
+                    if (v < dangle)
+                        dir = DIR_UP;
+                        dangle = v;
+                    end
+                end
+
+                case DIR_DOWN:
+                    v = fget_dist(x,y+1,tx,ty);
+                    if (v < dangle)
+                        dir = DIR_DOWN;
+                        dangle = v;
+                    end
+                end
+
+            end
             end
 
+       end
 
-            dirs[dir] = 1;
+                if (dir == -1)
+                    dir = odir;
+                end
 
-            x = ox;
-            y = oy;
+                if (dirs[dir] != 0)
+                    from p = 0 to 3;
+                        if (dirs[p] == 0)
+                            dir = p;
+                            //debug;
+
+                            break;
+                        end
+                    end
+                end
+
+                if (dir <0 or dir > 3 )
+                    dir = odir;
+                end
+
+
+                dirs[dir] = 1;
+
+                x = ox;
+                y = oy;
 
 
 
@@ -416,28 +561,51 @@ loop
                 x+=nx;
                 y+=ny;
 
+  //              map_put_pixel(file,102,x-1,y-13,greenpath);
 
-                p = map_get_pixel(file,101,x-1,y-13);
+               p = map_get_pixel(file,101,x-1,y-13);
+               //if (p == greenpath and ox == 98)
 
-                if (p == redpath or (oy == 98 && p == greenpath && wait == 0))
-                   v = true;
+               /*
+                if (p == 0) // or ( p!=98 and p == greenpath) or ( odir &1 == dir &1))
+
+
+                    dir ++;
+
+                    if (dir == 4)
+                        dir = 0;
+                    end
+                    x = ox;
+                    y = oy;
+
+                    ///dir = dir mod 4;
+                //end
+                else
+                    v = true;
+                    tries = 0;
+                end
+
+                //if (p == redpath or (oy == 98 && p == greenpath && wait == 0))
+                //   v = true;
+
                    //break;
                 //else
                     //debug;
                 //end
 
-            else
-                dir ++;
-                dir = dir mod 4;
-            end
-            tries--;
-        until (p == redpath or v == true)
+            //else
+            //    dir ++;
+            //    dir = dir mod 4;
+            //end
+            */
+            //tries--;
+            until (tries <= 0 or p == redpath or (p == greenpath and oy == 98 and wait == 0) or v == true)
 
 
-        dx = nx;
-        dy = ny;
+            dx = nx;
+            dy = ny;
 
-     end
+        end
 
     end
 
@@ -556,6 +724,15 @@ loop
     i = map_get_pixel(file,101,x-1,y-13);
 
     if(i == 0 or i == greenpath)
+            // and go through maze exits
+            if (x<-16)
+                x=336;
+            end
+
+            if (x> 336)
+                x=-16;
+            end
+
         x = ox;
         y = oy;
         dx= 0;
