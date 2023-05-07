@@ -18,6 +18,9 @@ DIR_DOWN = 3;
 M_SCATTER = 0;
 M_HUNT = 1;
 M_SCARED = 2;
+M_EYES = 3;
+
+
 
 
 global
@@ -45,6 +48,7 @@ playing = 0;
 
 local
 dangle;
+scared;
 
 BEGIN
 
@@ -112,6 +116,25 @@ repeat
 
 until (x==100);
 
+x=100;
+repeat
+    get_point(file,102,x, &px, &py);
+    //debug;
+
+    if (px < 65000 && px > 0 && py > 0)
+        pill(px+4, py+16);
+        pill((320-px)-4, py+16);
+
+        //wafer(px+4,py+13);
+        //wafer((320-px)-4, py+13);
+
+    else
+      break;
+    end
+    x++;
+
+until (x==102);
+
 
 /*
 FROM x = 9 to 134;
@@ -140,9 +163,21 @@ priority = 1;
 
 
 loop;
-delete_draw(all_drawing);
+//delete_draw(all_drawing);
 
-frame;
+if (key(_f))
+
+    fruit();
+
+    while(key(_f))
+        frame();
+    end
+
+
+end
+
+    frame;
+
 end
 
 
@@ -150,13 +185,76 @@ end
 
 process wafer(x,y)
 
+private
+
+pid;
+
 begin
 
 graph = 50;
 
 
-while(!collision(type player))
-frame;
+loop
+    pid = collision(type player);
+    if(pid)
+
+        if(pid.y == y)
+            if(abs(pid.x-x)<4)
+                return;
+            end
+        else
+            if(abs(pid.y-y)<2)
+                return;
+            end
+        end
+
+    end
+
+
+    frame;
+end
+
+end
+
+process pill(x,y)
+
+private
+
+pid;
+
+begin
+
+graph = 51;
+
+
+loop
+    size = 100-size;
+    pid = collision(type player);
+    if(pid)
+        repeat
+            pid = get_id(type ghost);
+            if(pid)
+                pid.scared = 1;
+            end
+        until (pid == 0);
+
+        return;
+        /*
+        if(pid.y == y)
+            if(abs(pid.x-x)<4)
+                debug;
+                return;
+            end
+        else
+            if(abs(pid.y-y)<2)
+                debug;
+                return;
+            end
+        end
+        */
+    end
+
+    frame(400);
 end
 
 end
@@ -189,7 +287,8 @@ tries = 5;
 dirs[4];
 num_points;
 index;
-
+scaredtime = 0;
+ograph = 0;
 struct points[100];
 x;
 y;
@@ -199,7 +298,8 @@ end
 begin
 mode = M_HUNT;
 
-graph = new_map(16,10,8,5,0);
+ograph = new_map(16,10,8,5,0);
+graph = ograph;
 map_put(file,graph,10,8,5);
 from x = 0 to 255;
 pal[x] = x;
@@ -218,7 +318,7 @@ if (gid == 0)
 else
     y = 98;
     dx = 1;
-    wait = gid * 200;
+    wait = (gid-1) * 100;
     //odir = 1;
     ///dir = 1;
     dir = DIR_RIGHT;
@@ -226,7 +326,7 @@ else
 end
 //flags = 4;
 
-flen = 90 + (gid * 8);
+flen = 100 + (gid * 8);
 
 //write_int(0,0,4+gid*12,0,offset reserved.frame_percent);
 
@@ -237,6 +337,18 @@ target = get_id(type player);
 
 loop
     //delete_text(tid);
+    if (scared == 1)
+        scared = 0;
+        mode =  M_SCARED;
+        graph = 11;
+        scaredtime = 10;
+
+        // change direction
+
+        dir = (dir + 2) mod 4;
+        dx = -dx;
+        dy = -dy;
+    end
 
     //tid = write(0,20,20,4,itoa(reserved[0].frame_percent));
 
@@ -366,6 +478,7 @@ loop
                 end
 
             end
+
             else
                 tx = ghost_home[gid].x;
                 ty = ghost_home[gid].y;
@@ -438,11 +551,12 @@ loop
 
         // If a route was obtained, it shows the route and advances to the destination
 
-        /*
+
         IF (num_points>0)
             tx = points[0].x+1;
             ty = points[0].y+13;
 
+        /*
             FOR (index=0;index<num_points-1;index++)
                 draw(1,24,15,0,points[index].x+1,points[index].y+13,points[index+1].x+1,points[index+1].y+13);
             END
@@ -455,9 +569,9 @@ loop
 //            END
 
             draw(1,24,15,0,x,y,points[0].x+1,points[0].y+13);
-
+         */
         END
-        */
+
 
         if ( abs(tx - x) > abs(ty - y))
             ty = y;
@@ -607,7 +721,7 @@ loop
             //end
             */
             //tries--;
-            until (tries <= 0 or p == redpath or (p == greenpath and oy == 98 and wait == 0) or v == true)
+            until (tries <= 0 or p == redpath or (p == greenpath and oy == 84 and wait == 0) or v == true)
 
 
             dx = nx;
@@ -620,6 +734,16 @@ loop
     if(fc < framecount)
         fc = framecount;
         flags = 1 - flags;
+        if(scaredtime > 0)
+            scaredtime --;
+            if(scaredtime == 0)
+                graph = ograph;
+                mode = M_HUNT;
+
+            end
+        end
+
+
     end
     //x=tx;
     //y=ty;
@@ -761,3 +885,121 @@ end
 
 
 end
+
+
+process fruit()
+
+private
+dx=1;
+dy=0;
+tx = 319;
+py=0;
+ty = 0;
+yanim = 0;
+yoffs[] = (
+    0,0,
+    -1,0,
+    -1,0,
+    -1,0,
+    0,0,
+    1,0,
+    1,0,
+    1,0
+);
+
+d = 0;
+
+num_points;
+index;
+
+struct points[100];
+    x;
+    y;
+end
+
+begin
+delete_text(all_text);
+
+write_int(0,0,4,0,offset d);
+write_int(0,0,16,0,offset x);
+write_int(0,0,28,0,offset yanim);
+
+
+graph = 20;
+x=8;
+
+y=0;
+while (map_get_pixel(file,101,x,y)!=redpath)
+y++;
+end
+
+y+=13; // first point
+ty = y;
+
+x=-11;
+
+
+//fruit needs to bounce
+py = y;
+
+loop
+
+    y+=yoffs[yanim];
+
+    yanim++;
+
+    if(yanim>=sizeof(yoffs))
+        yanim = 0;
+        py = y;
+    end
+    x+=dx;
+    y+=dy;
+    d = map_get_pixel(file,101,x-1,py-13);
+    map_put_pixel(file,102,x-1,y-13,redpath);
+
+    if ( d == bluepath or true )
+        delete_draw(all_drawing);
+
+        //d = get_id(type player);
+        //x = d.x-1;
+        //y= d.y-13;
+
+        // get new direction
+        //path_find
+        x--;
+        y-=13;
+
+        num_points = path_find(1, file, 103,2,tx-1,ty-13, &points, sizeof(points));
+        x++;
+        y+=13;
+
+        IF (num_points>0)
+          //  tx = points[0].x+1;
+          //  ty = points[0].y+13;
+
+            FOR (index=0;index<num_points-1;index++)
+                draw(1,24,15,0,points[index].x+1,points[index].y+13,points[index+1].x+1,points[index+1].y+13);
+            END
+
+//            IF (fget_dist(x,y,points[0].x,points[0].y)>4)
+//                xadvance(fget_angle(x,y,points[0].x,points[0].y),4);
+//            ELSE
+//                x=points[0].x;
+//                y=points[0].y;
+//            END
+
+            draw(1,24,15,0,x,y,points[0].x+1,points[0].y+13);
+        end
+       debug;
+
+    end
+
+
+
+    frame;
+
+end
+
+
+end
+
