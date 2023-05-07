@@ -6,9 +6,9 @@
 PROGRAM mspacman;
 CONST
 
-greenpath = 39;
-redpath = 22;
-bluepath = 54;
+greenpath = 32;
+redpath = 166;
+bluepath = 98;
 
 DIR_LEFT = 0;
 DIR_UP = 1;
@@ -22,7 +22,12 @@ M_SCARED = 2;
 
 global
 
-ghost_colours[] = (165,254,200, 121);
+ghost_colours[] = (
+170, // red ghost
+241, // pink ghost
+86, // blue ghost
+154  // yellow ghost
+);
 ghost_ids[4];
 struct ghost_home[4]
     x;
@@ -200,7 +205,7 @@ from x = 0 to 255;
 pal[x] = x;
 end
 
-pal[135] = ghost_colours[gid];
+pal[171] = ghost_colours[gid];
 
 convert_palette(file, graph, &pal);
 
@@ -219,9 +224,9 @@ else
     dir = DIR_RIGHT;
 
 end
-flags = 4;
+//flags = 4;
 
-flen = 100 + (gid * 8);
+flen = 90 + (gid * 8);
 
 //write_int(0,0,4+gid*12,0,offset reserved.frame_percent);
 
@@ -292,7 +297,7 @@ loop
                             ty = target.y + 32;
                         else
                             ty = target.y - 32;
-                            tx = target.x - 64;
+                            tx = target.x - 64;  // if its up, we also go 4 to the left
                         end
 
                     else
@@ -315,7 +320,7 @@ loop
                             ty = target.y + 16;
                         else
                             ty = target.y - 16;
-                            tx = target.x - 32;
+                            tx = target.x - 32; // same case here, 2 up 2 left
                         end
 
                     else
@@ -339,6 +344,7 @@ loop
 
 
                     xadvance(dangle, p);
+
                     tx = x;
                     ty = y;
                     x = ox;
@@ -432,24 +438,26 @@ loop
 
         // If a route was obtained, it shows the route and advances to the destination
 
-
+        /*
         IF (num_points>0)
             tx = points[0].x+1;
             ty = points[0].y+13;
-            /*
+
             FOR (index=0;index<num_points-1;index++)
                 draw(1,24,15,0,points[index].x+1,points[index].y+13,points[index+1].x+1,points[index+1].y+13);
             END
+
 //            IF (fget_dist(x,y,points[0].x,points[0].y)>4)
 //                xadvance(fget_angle(x,y,points[0].x,points[0].y),4);
 //            ELSE
 //                x=points[0].x;
 //                y=points[0].y;
 //            END
-            draw(1,24,15,0,x,y,points[0].x+1,points[0].y+13);
-            */
-        END
 
+            draw(1,24,15,0,x,y,points[0].x+1,points[0].y+13);
+
+        END
+        */
 
         if ( abs(tx - x) > abs(ty - y))
             ty = y;
@@ -651,10 +659,12 @@ dangle = 90000;
 //delete_text(tid);
 
 loop
-    anim++;
-    // get the current pixel under the player
-    if(anim == 4)
-        anim = 0;
+    if ( x!=ox or y!=oy or playing == false)
+        anim++;
+        // get the current pixel under the player
+        if(anim == 4)
+            anim = 0;
+        end
     end
 
     odir = dir;
