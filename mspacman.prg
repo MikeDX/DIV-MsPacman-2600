@@ -20,10 +20,15 @@ M_HUNT = 1;
 M_SCARED = 2;
 M_EYES = 3;
 
-
-
-
 global
+
+pal[256];
+
+level = 2;
+map_base;
+path_map;
+hard_map;
+point_map;
 
 ghost_colours[] = (
 170, // red ghost
@@ -52,43 +57,50 @@ scared;
 
 BEGIN
 
+map_base = 100 + level * 4;
+point_map = map_base + 2;
+hard_map = map_base + 1;
+path_map = map_base + 3;
+
 //Write your code here, make something amazing!
 set_mode(m320x240);
 load_fpg("mspacman.FPG");
 
-//put_screen(file, 200);
+// draw maze
 maze();
-player();
-from x = 0 to 3;
-ghost_ids[x] = ghost(x);
 
+// spawn player
+player();
+
+// spawn ghosts
+from x = 0 to 3;
+    ghost_ids[x] = ghost(x);
 end
 
-/*
-graph = 101 ;
-x=160;
-y=97;
-flags = 4;
-*/
+
+// wait for space to be pressed to start the game
 
 while(!key(_space))
-frame(1000);
-framecount++;
+    frame(1000);
+    framecount++;
 end
 
+// now playing
 playing = 1;
 
 
+// main loop
 loop
 
-framecount++;
-frame(1000);
+    framecount++;
+    frame(1000);
 
 end
 
 
 
 END
+
 
 process maze()
 
@@ -101,80 +113,78 @@ begin
 
 x=1;
 
+// spawn wafers
 repeat
-    get_point(file,102,x, &px, &py);
-    //debug;
+    // get a point on the map
+    get_point(file,point_map,x, &px, &py);
 
+    // check if it is a valid wafer location
     if (px < 65000 && px > 0 && py > 0)
+
+        // spawn wafer (left side)
         wafer(px+4,py+13);
+
+        // and right side)
         wafer((320-px)-4, py+13);
 
     else
-      break;
+        // value out of range, wafers complete
+        break;
     end
     x++;
 
-until (x==100);
+until (x==100);  // or max reached
 
+// spawn power pills
 x=100;
 repeat
-    get_point(file,102,x, &px, &py);
-    //debug;
+    // get a point on the map
+    get_point(file,point_map,x, &px, &py);
 
+    // check if it is a valid power pill location
     if (px < 65000 && px > 0 && py > 0)
+
+        // draw on left
         pill(px+4, py+16);
+
+        // and right
         pill((320-px)-4, py+16);
 
-        //wafer(px+4,py+13);
-        //wafer((320-px)-4, py+13);
 
     else
-      break;
+        // value out of range, pills complete
+        break;
     end
     x++;
 
-until (x==102);
+until (x==102); // or max reached
 
 
-/*
-FROM x = 9 to 134;
-    get_point(file,101,x,&px, &py);
-    wafer(px,py);
-    break;
-END
+// our map graph
+graph = point_map ;
 
-// setup powerpills
-FROM x = 1 to 4;
-    get_point(file,101,x,&px,&py);
-    powerpill(px,py);
-end
-*/
-
-/*
-repeat
-
-until x = 0
-*/
-graph = 102 ;
+// location on screen
 x=160;
 y=97;
-//flags = 4;
+
+// execute this process before others
 priority = 1;
 
 
-loop;
-//delete_draw(all_drawing);
+loop
 
-if (key(_f))
+    // if f key pressed
+    if (key(_f))
 
-    fruit();
+        // spawn cherries
+        fruit();
 
-    while(key(_f))
-        frame();
+        // wait until f no longer pressed
+        while(key(_f))
+            frame();
+        end
+
     end
-
-
-end
 
     frame;
 
@@ -183,6 +193,7 @@ end
 
 end
 
+// wafer process
 process wafer(x,y)
 
 private
@@ -191,13 +202,28 @@ pid;
 
 begin
 
+// wafer graphic
 graph = 50;
+
+// Create a copy of the palette
+from pid = 0 to 255;
+    pal[pid] = pid;
+end
+
+// set palette id 171 (colour of the template ghost) to our ghost colour
+pal[map_get_pixel(file,graph,0,0)] = map_get_pixel(file,map_base,0,0);
+
+// convert our ghost sprite to use this palette
+convert_palette(file, graph, &pal);
 
 
 loop
     pid = collision(type player);
+
+    // did we collide with player?
     if(pid)
 
+        // close enough?
         if(pid.y == y)
             if(abs(pid.x-x)<4)
                 return;
@@ -216,6 +242,8 @@ end
 
 end
 
+
+// power pill process
 process pill(x,y)
 
 private
@@ -224,13 +252,21 @@ pid;
 
 begin
 
+// power pill graphic
 graph = 51;
 
 
 loop
+    // alternate on / off
     size = 100-size;
+
+    // get player process id
     pid = collision(type player);
+
+    // did we collide with player?
     if(pid)
+
+        // iterate over ghosts and make them "scared"
         repeat
             pid = get_id(type ghost);
             if(pid)
@@ -239,32 +275,28 @@ loop
         until (pid == 0);
 
         return;
-        /*
-        if(pid.y == y)
-            if(abs(pid.x-x)<4)
-                debug;
-                return;
-            end
-        else
-            if(abs(pid.y-y)<2)
-                debug;
-                return;
-            end
-        end
-        */
     end
 
+    // flash delay
     frame(400);
 end
 
 end
 
 
+
+// ghost process
+// -------------
+//
+// This is a lot of code due to the way the ghosts
+// AI and movement is calculated.
+//
+// I have tried to explain the code as best as possible
+
 process ghost(gid)
 
 private
 mode;
-pal[256];
 wait = 0;
 speed = 4;
 dx = -1;
@@ -276,7 +308,9 @@ oy;
 p;
 dir = 1;
 odir = 1;
-flen = 0;
+
+// sane default
+flen = 100;
 tid;
 fc = 0;
 target;
@@ -289,87 +323,170 @@ num_points;
 index;
 scaredtime = 0;
 ograph = 0;
-struct points[100];
-x;
-y;
+egraph;
 
+// storage for path finder
+struct points[100];
+    x;
+    y;
 end
 
+
+// entry point
 begin
+
+// start in "hunt" mode
 mode = M_HUNT;
 
+// create a blank map for our ghost
 ograph = new_map(16,10,8,5,0);
+
+// set our graph to the new map
 graph = ograph;
+
+// paste the template ghost sprite from the FPG at id 10
 map_put(file,graph,10,8,5);
+
+// create a blank map for our "eyes"
+egraph = new_map(16,10,8,5,0);
+
+// paste the template ghost eyes sprite from the FPG at id 12
+map_put(file,egraph,12,8,5);
+
+
+// Create a copy of the palette
 from x = 0 to 255;
-pal[x] = x;
+    pal[x] = x;
 end
 
+// set palette id 171 (colour of the template ghost) to our ghost colour
 pal[171] = ghost_colours[gid];
 
+// convert our ghost sprite to use this palette
 convert_palette(file, graph, &pal);
 
+// and the eyes
+convert_palette(file, egraph, &pal);
 
+
+// starting x position is centre of screen
 x= 160;
+
+// if we are the red ghost
 if (gid == 0)
+
+    // start outside the home
     y = 67;
+
+    // and go left?
     dir = DIR_LEFT;
+
+    // and x direction is minus 1 (go left)
     dx = -1;
 else
+
+    // a ghost starting in the home
     y = 98;
-    dx = 1;
+
+
+    // delay until they can escape
     wait = (gid-1) * 100;
-    //odir = 1;
-    ///dir = 1;
+
+    // go right
     dir = DIR_RIGHT;
 
+    // x direction is plus 1 (go right)
+    dx = 1;
+
 end
-//flags = 4;
 
-flen = 100 + (gid * 8);
 
-//write_int(0,0,4+gid*12,0,offset reserved.frame_percent);
 
-//flags = 4;
 
+// the target process for AI calculations
 target = get_id(type player);
 
 
+// main loop
 loop
-    //delete_text(tid);
+
+    // has the scared flag been set?
     if (scared == 1)
+        // unset it
         scared = 0;
-        mode =  M_SCARED;
-        graph = 11;
-        scaredtime = 10;
 
-        // change direction
+        // if not already eyes
+        if (mode != M_EYES)
+            // set mode to M_SCARED
+            mode =  M_SCARED;
 
-        dir = (dir + 2) mod 4;
-        dx = -dx;
-        dy = -dy;
+            // and the scared graphic
+            graph = 11;
+
+            // and set how long we will be scared for
+            scaredtime = 20;
+
+            // change direction
+            // 0 = 2, 1 = 3, 2 = 0, 3 = 1...
+            dir = (dir + 2) mod 4;
+
+            // and invert directional vector
+            dx = -dx;
+            dy = -dy;
+
+            // and go slow
+
+            flen = 150;
+        end
     end
 
-    //tid = write(0,20,20,4,itoa(reserved[0].frame_percent));
 
-        //debug;
+    // if game in progress
     if(playing)
 
+        // are we waiting in the home?
         if (wait > 0)
+
+            // decrease wait time
             wait --;
-            //size = 50;
-
-        else
-
-            //size = 100;
 
         end
 
-        p = map_get_pixel(file,101,x-1,y-13);
-        //map_put_pixel(file,100,x-1,y-13,redpath);
+        // set our ghost speed based upon what state we are in
+        // frame length modifies speed of the ghost
+        // bigger flen = slower ghost
+        //
+        // on ghost movement...
+        // flen = 100 + (gid * 8);
+
+        switch(mode)
+            case M_HUNT:
+                flen = 100 + (gid * 8);
+            end
+
+            case M_SCATTER:
+                flen = 100 + (gid * 8);
+            end
+
+            case M_SCARED:
+                flen = 200;
+            end
+
+
+            case M_EYES:
+                flen = 80;
+            end
+        end
+
+
+
+        // get the pixel of the hardness map under our ghost
+        p = map_get_pixel(file,hard_map,x-1,y-13);
+
+        // save the original direction value
         odir = dir;
 
-        // if we arent on a bluepath to change direction, just kep going.
+        // if we arent on a bluepath to change direction, just keep going.
         if (p != bluepath)
             x+=dx;
             y+=dy;
@@ -386,102 +503,130 @@ loop
         else
 
             // blue path.. make some decisions
-            tx = target.x;
-            ty = target.y;
 
 
-            if ( mode == M_HUNT)
+            // by default, target player coordinates
 
-            switch(gid)
-                // red ghost
-                case 0:
 
-                    // target is exactly where mspacman is
-                    // so do nothing
+            // what state are we in?
+            switch(mode)
+
+                // hunt mode - target player directly.
+                case M_HUNT:
+
+                    switch(gid)
+                        // red ghost
+                        case 0:
+
+                            // target is exactly where mspacman is
+                            	tx = target.x;
+                            ty = target.y;
+
+                        end
+
+
+                        case 1:
+                            // target is 4 whole units ahead of mspacman
+                            if (target.dangle == -90000 or target.dangle == 90000)
+
+                                if(target.dangle == -90000)
+                                    ty = target.y + 32;
+                                else
+                                    ty = target.y - 32;
+                                    tx = target.x - 64;  // if its up, we also go 4 to the left
+                                end
+
+                            else
+
+                                if(target.dangle == -180000)
+                                    tx = target.x - 64;
+                                else
+                                    tx = target.x + 64;
+                                end
+                            end
+
+                        end
+
+
+                        case 2:
+                            // target is the space that is double the distance from
+                            // red ghost to two spaces ahead of mspacman
+
+                            if (target.dangle == -90000 or target.dangle == 90000)
+
+                                if(target.dangle == -90000)
+                                    ty = target.y + 16;
+                                else
+                                    ty = target.y - 16;
+                                    tx = target.x - 32; // same case here, 2 up 2 left
+                                end
+
+                            else
+                                if(target.dangle == -180000)
+                                    tx = target.x - 16;
+                                else
+                                    tx = target.x + 32;
+                                end
+                            end
+
+                            // tx acquired.. now calculate from red ghost's x
+
+                            // get the distance between the two points.
+
+                            p = fget_dist(ghost_ids[0].x, ghost_ids[0].y,tx,ty)*2;
+
+                            dangle = fget_angle(ghost_ids[0].x, ghost_ids[0].y,tx,ty);
+
+                            ox = x;
+                            oy = y;
+
+                            x = ghost_ids[0].x;
+                            y = ghost_ids[0].y;
+
+                            xadvance(dangle, p);
+
+                            tx = x;
+                            ty = y;
+                            x = ox;
+                            y = oy;
+                        end
+
+
+                        case 3:
+                            p = get_dist(target);
+                            if (p < 64)
+
+                                tx = ghost_home[gid].x;
+                                ty = ghost_home[gid].y;
+
+                            else
+                                // redundant
+                                tx = target.x;
+                                ty = target.y;
+                            end
+                        end
+
+                    end // end ghost switch
+
+                end // end M_HUNT
+
+
+                // if scared or scatter, return to "home" corner
+                case M_SCATTER:
+                    tx = ghost_home[gid].x;
+                    ty = ghost_home[gid].y;
                 end
 
-
-                case 1:
-                    // target is 4 whole units ahead of mspacman
-                    if (target.dangle == -90000 or target.dangle == 90000)
-
-                        if(target.dangle == -90000)
-                            ty = target.y + 32;
-                        else
-                            ty = target.y - 32;
-                            tx = target.x - 64;  // if its up, we also go 4 to the left
-                        end
-
-                    else
-                        if(target.dangle == -180000)
-                            tx = target.x - 64;
-                        else
-                            tx = target.x + 64;
-                        end
-                    end
-
-                end
-
-                case 2:
-                    // target is the space that is double the distance from
-                    // red ghost to two spaces ahead of mspacman
-
-                    if (target.dangle == -90000 or target.dangle == 90000)
-
-                        if(target.dangle == -90000)
-                            ty = target.y + 16;
-                        else
-                            ty = target.y - 16;
-                            tx = target.x - 32; // same case here, 2 up 2 left
-                        end
-
-                    else
-                        if(target.dangle == -180000)
-                            tx = target.x - 16;
-                        else
-                            tx = target.x + 32;
-                        end
-                    end
-
-                    // tx acquired.. now calculate from red ghost's x
-
-                    // get the distance between the two points.
-
-                    p = fget_dist(ghost_ids[0].x, ghost_ids[0].y,tx,ty)*2;
-                    dangle = fget_angle(ghost_ids[0].x, ghost_ids[0].y,tx,ty);
-                    ox = x;
-                    oy = y;
-                    x = ghost_ids[0].x;
-                    y = ghost_ids[0].y;
-
-
-                    xadvance(dangle, p);
-
-                    tx = x;
-                    ty = y;
-                    x = ox;
-                    y = oy;
-                end
-
-                case 3:
-                   p = get_dist(target);
-                   if (p < 64)
-
+                case M_SCARED:
                     tx = ghost_home[gid].x;
                     ty = ghost_home[gid].y;
 
-                   else
-                     // redundant
-                    tx = target.x;
-                    ty = target.y;
-                   end
                 end
 
-            end
-
-            else
-                tx = ghost_home[gid].x;
-                ty = ghost_home[gid].y;
+                case M_EYES:
+                    tx = 160;
+                    ty = 84;
+                end
             end
 
 
@@ -524,7 +669,7 @@ loop
                     end
                 end
 
-                if(map_get_pixel(file,101,nx-1,ny-13) == 0)
+                if(map_get_pixel(file,hard_map,nx-1,ny-13) == 0)
                     dirs[p]=1;
                 end
             end
@@ -538,13 +683,25 @@ loop
 
             //dirs[p] = 1;
 
+            if (mode == M_EYES)
+                if (x == tx and y == ty)
+                    mode = M_HUNT;
 
+                    graph = ograph;
+
+                    // only go left
+                    from p = 0 to 3;
+                        dirs[p] = 1;
+                    end
+                    dirs[DIR_LEFT] = 0;
+                end
+            end
 
             repeat
                 dir = -1;
                 x--;
                 y-=13;
-                num_points = path_find(1, file, 103,2,tx-1,ty-13, &points, sizeof(points));
+                num_points = path_find(1, file, path_map,2,tx-1,ty-13, &points, sizeof(points));
                 x++;
                 y+=13;
                 //num_points=path_find(0,0,201,2,mouse.x,mouse.y,OFFSET points,sizeof(points));
@@ -685,7 +842,7 @@ loop
 
   //              map_put_pixel(file,102,x-1,y-13,greenpath);
 
-               p = map_get_pixel(file,101,x-1,y-13);
+               p = map_get_pixel(file,hard_map,x-1,y-13);
                //if (p == greenpath and ox == 98)
 
                /*
@@ -721,7 +878,12 @@ loop
             //end
             */
             //tries--;
-            until (tries <= 0 or p == redpath or (p == greenpath and oy == 84 and wait == 0) or v == true)
+            until (tries <= 0 or p == redpath
+                or (p == greenpath and oy == 84 and wait == 0)
+                or (p == greenpath and mode == M_EYES)
+                or v == true)
+
+
 
 
             dx = nx;
@@ -733,7 +895,26 @@ loop
 
     if(fc < framecount)
         fc = framecount;
-        flags = 1 - flags;
+        if (mode == M_SCARED)
+
+
+            if (scaredtime < 10)
+                flags = 0;
+
+                if (graph == 11)
+                    graph = 13;
+                else
+                    graph = 11;
+                end
+            else
+                flags = 1 - flags;
+            end
+
+
+        else
+            flags = 1 - flags;
+        end
+
         if(scaredtime > 0)
             scaredtime --;
             if(scaredtime == 0)
@@ -747,6 +928,37 @@ loop
     end
     //x=tx;
     //y=ty;
+
+    if (mode == M_SCARED);
+
+        p = collision(type player);
+        if(p)
+
+            if(p.y == y)
+                if(abs(p.x-x)<6)
+                    mode = M_EYES;
+                end
+            else
+
+                if(abs(p.y-y)<3)
+                    mode = M_EYES;
+                end
+            end
+
+            if (mode == M_EYES)
+                scaredtime = 0;
+                graph = egraph;
+                playing = 0;
+                signal(p,s_freeze);
+                frame(1000);
+                signal(p,s_wakeup);
+                playing = 1;
+            end
+
+        end
+    end
+
+
 
     frame(flen/speed);
     //debug;
@@ -791,6 +1003,8 @@ loop
         end
     end
 
+    if(playing)
+
     odir = dir;
 
     if(key(_up))
@@ -809,7 +1023,6 @@ loop
         dir = 3;
     end
     odangle = dangle;
-    if(playing)
 
     switch(dir)
         case 0:
@@ -839,7 +1052,7 @@ loop
     end
 
 
-    i = map_get_pixel(file,101,x+nx-1,y+ny-13);
+    i = map_get_pixel(file,hard_map,x+nx-1,y+ny-13);
 
     if( i == 0 || i == greenpath)
        nx = 0;
@@ -855,7 +1068,7 @@ loop
     x+=dx;
     y+=dy;
 
-    i = map_get_pixel(file,101,x-1,y-13);
+    i = map_get_pixel(file,hard_map,x-1,y-13);
 
     if(i == 0 or i == greenpath)
             // and go through maze exits
@@ -929,7 +1142,7 @@ graph = 20;
 x=8;
 
 y=0;
-while (map_get_pixel(file,101,x,y)!=redpath)
+while (map_get_pixel(file,hard_map,x,y)!=redpath)
 y++;
 end
 
@@ -954,8 +1167,8 @@ loop
     end
     x+=dx;
     y+=dy;
-    d = map_get_pixel(file,101,x-1,py-13);
-    map_put_pixel(file,102,x-1,y-13,redpath);
+    d = map_get_pixel(file,hard_map,x-1,py-13);
+    map_put_pixel(file,point_map,x-1,y-13,redpath);
 
     if ( d == bluepath or true )
         delete_draw(all_drawing);
@@ -969,7 +1182,7 @@ loop
         x--;
         y-=13;
 
-        num_points = path_find(1, file, 103,2,tx-1,ty-13, &points, sizeof(points));
+        num_points = path_find(1, file, path_map,2,tx-1,ty-13, &points, sizeof(points));
         x++;
         y+=13;
 
