@@ -24,7 +24,7 @@ global
 
 pal[256];
 
-level = 2;
+level = 3;
 map_base;
 path_map;
 hard_map;
