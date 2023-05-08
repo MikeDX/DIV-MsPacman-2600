@@ -593,14 +593,18 @@ loop
 
 
                         case 3:
-                            p = get_dist(target);
-                            if (p < 64)
 
+                            // How far are we from the target?
+                            p = get_dist(target);
+
+                            // close to the target?
+                            if (p < 64)
+                                // return to home "corner"
                                 tx = ghost_home[gid].x;
                                 ty = ghost_home[gid].y;
 
                             else
-                                // redundant
+                                // head straight for target
                                 tx = target.x;
                                 ty = target.y;
                             end
@@ -623,6 +627,7 @@ loop
 
                 end
 
+                // if eyes, return to base
                 case M_EYES:
                     tx = 160;
                     ty = 84;
@@ -630,22 +635,22 @@ loop
             end
 
 
+            // calculate which direction we want to proceed in.
 
 
-
-
-            //if ( y == 98)
-            //    debug;
-            //end
+            // save old direction
             odir = dir;
 
+            // and old coordinates
             ox = x;
             oy = y;
 
-            //dir = rand(0,3);
+            // set v to false (invalid direction) and tries to 5 for max attemps.
             v = false;
             tries = 5;
 
+            // examine each direction and discover if it is valid to
+            // moe that way.
             from p = 0 to 3;
                 dirs[p] = 0;
                 nx = x;
@@ -674,218 +679,203 @@ loop
                 end
             end
 
-            p = (dir + 2) mod 4;
 
+            // mark "reverse" as invalid
+            p = (dir + 2) mod 4;
             dirs[p] = 2;
 
-            //debug;
-            //p = 2 - (dir & 1)  + (dir & 1);
-
-            //dirs[p] = 1;
-
+            // if we are eyes...
             if (mode == M_EYES)
+                // have we reached the reincarnation chamber?
                 if (x == tx and y == ty)
+
+                    // reset chase mode
                     mode = M_HUNT;
 
+                    // and ghost graphic
                     graph = ograph;
 
-                    // only go left
+                    // only go left inside box
                     from p = 0 to 3;
                         dirs[p] = 1;
                     end
+                    // ensure we have "left" as a valid direction for choices.
                     dirs[DIR_LEFT] = 0;
                 end
             end
 
+            // repeat the following until we have a valid direction.
             repeat
+
+                // dir is invalid
                 dir = -1;
+
+                // use the path map to see the points in the path from us to the target x/y
+
+                // use the x/y offset
                 x--;
                 y-=13;
                 num_points = path_find(1, file, path_map,2,tx-1,ty-13, &points, sizeof(points));
+
+                // and put x/y back
                 x++;
                 y+=13;
-                //num_points=path_find(0,0,201,2,mouse.x,mouse.y,OFFSET points,sizeof(points));
 
-        // If a route was obtained, it shows the route and advances to the destination
+                // If a route was obtained, it shows the route and advances to the destination
+                IF (num_points>0)
 
-
-        IF (num_points>0)
-            tx = points[0].x+1;
-            ty = points[0].y+13;
-
-        /*
-            FOR (index=0;index<num_points-1;index++)
-                draw(1,24,15,0,points[index].x+1,points[index].y+13,points[index+1].x+1,points[index+1].y+13);
-            END
-
-//            IF (fget_dist(x,y,points[0].x,points[0].y)>4)
-//                xadvance(fget_angle(x,y,points[0].x,points[0].y),4);
-//            ELSE
-//                x=points[0].x;
-//                y=points[0].y;
-//            END
-
-            draw(1,24,15,0,x,y,points[0].x+1,points[0].y+13);
-         */
-        END
+                    // target is the first point in the path find
+                    tx = points[0].x+1;
+                    ty = points[0].y+13;
 
 
-        if ( abs(tx - x) > abs(ty - y))
-            ty = y;
-        else
-            tx = x;
-        end
+                    // debug draw path
 
-        dangle = MAX_INT;
-        from p = 0 to 3;
-            if (dirs[p] == 0)
-            switch(p)
-
-                case DIR_LEFT:
-                    v = fget_dist(x-1,y,tx,ty);
-                    if (v < dangle)
-                        dir = DIR_LEFT;
-                        dangle = v;
-                    end
-                end
-
-                case DIR_RIGHT:
-                    v = fget_dist(x+1,y,tx,ty);
-                    if (v < dangle)
-                        dir = DIR_RIGHT;
-                        dangle = v;
-                    end
-                end
-
-                case DIR_UP:
-                    v = fget_dist(x,y-1,tx,ty);
-                    if (v < dangle)
-                        dir = DIR_UP;
-                        dangle = v;
-                    end
-                end
-
-                case DIR_DOWN:
-                    v = fget_dist(x,y+1,tx,ty);
-                    if (v < dangle)
-                        dir = DIR_DOWN;
-                        dangle = v;
-                    end
-                end
-
-            end
-            end
-
-       end
-
-                if (dir == -1)
-                    dir = odir;
-                end
-
-                if (dirs[dir] != 0)
-                    from p = 0 to 3;
-                        if (dirs[p] == 0)
-                            dir = p;
-                            //debug;
-
-                            break;
-                        end
-                    end
-                end
-
-                if (dir <0 or dir > 3 )
-                    dir = odir;
-                end
+                    /*
+                    FOR (index=0;index<num_points-1;index++)
+                        draw(1,24,15,0,points[index].x+1,points[index].y+13,points[index+1].x+1,points[index+1].y+13);
+                    END
 
 
-                dirs[dir] = 1;
-
-                x = ox;
-                y = oy;
-
+                    draw(1,24,15,0,x,y,points[0].x+1,points[0].y+13);
+                    */
+                END
 
 
-            //if ( ((odir &1) != (dir &1)) or dir == odir )
-
-                switch(dir)
-                    case 0: // left
-                        nx = -1;
-                        ny = 0;
-                        speed = 4;
-                    end
-
-                    case 1:  // up
-                        nx = 0;
-                        ny = -1;
-                        speed = 2;
-                    end
-
-                    case 2:  // right
-                        nx = 1;
-                        ny = 0;
-                        speed = 4;
-
-                    end
-
-                    case 3:  // down
-                        nx = 0;
-                        ny = 1;
-                        speed = 2;
-                    end
-                end
-
-
-            //if ((abs(nx) != abs(dx)) or odir == dir)
-            //if (true)
-                x+=nx;
-                y+=ny;
-
-  //              map_put_pixel(file,102,x-1,y-13,greenpath);
-
-               p = map_get_pixel(file,hard_map,x-1,y-13);
-               //if (p == greenpath and ox == 98)
-
-               /*
-                if (p == 0) // or ( p!=98 and p == greenpath) or ( odir &1 == dir &1))
-
-
-                    dir ++;
-
-                    if (dir == 4)
-                        dir = 0;
-                    end
-                    x = ox;
-                    y = oy;
-
-                    ///dir = dir mod 4;
-                //end
+                // whichever is closer, try to move that way.
+                if ( abs(tx - x) > abs(ty - y))
+                    ty = y;
                 else
-                    v = true;
-                    tries = 0;
+                    tx = x;
                 end
 
-                //if (p == redpath or (oy == 98 && p == greenpath && wait == 0))
-                //   v = true;
 
-                   //break;
-                //else
-                    //debug;
-                //end
+                // temporary value
+                dangle = MAX_INT;
 
-            //else
-            //    dir ++;
-            //    dir = dir mod 4;
-            //end
-            */
-            //tries--;
+                // check all directions for best
+                from p = 0 to 3;
+
+                    // is this direction allowed?
+                    if (dirs[p] == 0)
+                        switch(p)
+
+                        case DIR_LEFT:
+                            // how far are we from the target?
+                            v = fget_dist(x-1,y,tx,ty);
+
+                            // shorter than previous best?
+                            if (v < dangle)
+                                // set direction
+                                dir = DIR_LEFT;
+                                // and "best" option
+                                dangle = v;
+                            end
+                        end
+
+                        case DIR_RIGHT:
+                            v = fget_dist(x+1,y,tx,ty);
+                            if (v < dangle)
+                                dir = DIR_RIGHT;
+                                dangle = v;
+                            end
+                        end
+
+                        case DIR_UP:
+                            v = fget_dist(x,y-1,tx,ty);
+                            if (v < dangle)
+                                dir = DIR_UP;
+                                dangle = v;
+                            end
+                        end
+
+                        case DIR_DOWN:
+                            v = fget_dist(x,y+1,tx,ty);
+                            if (v < dangle)
+                                dir = DIR_DOWN;
+                                dangle = v;
+                            end
+                        end
+
+                    end // direction invalid
+                end // loop
+
+            end
+
+            // new valid direction found?
+            if (dir == -1)
+                // just carry on in old direction
+                dir = odir;
+            end
+
+            // if previous direction was invalid
+            if (dirs[dir] != 0)
+                // find the next valid one
+                from p = 0 to 3;
+                    if (dirs[p] == 0)
+                        dir = p;
+                        break;
+                    end
+                end
+            end
+
+            // impossible?
+            if (dir <0 or dir > 3 )
+                dir = odir;
+            end
+
+
+            // mark used direction as "tried"
+            dirs[dir] = 1;
+
+            // and put x/y back to what they were
+            x = ox;
+            y = oy;
+
+
+
+            // which way should we go?
+            switch(dir)
+                case 0: // left
+                    nx = -1;
+                    ny = 0;
+                    speed = 4;
+                end
+
+                case 1:  // up
+                    nx = 0;
+                    ny = -1;
+                    speed = 2;
+                end
+
+                case 2:  // right
+                    nx = 1;
+                    ny = 0;
+                    speed = 4;
+
+                end
+
+                case 3:  // down
+                    nx = 0;
+                    ny = 1;
+                    speed = 2;
+                end
+            end
+
+            // move the ghost
+            x+=nx;
+            y+=ny;
+
+            // get the pixel under our new position
+            p = map_get_pixel(file,hard_map,x-1,y-13);
+
+            // check if this is a valid location, and if not, go try another one.
             until (tries <= 0 or p == redpath
                 or (p == greenpath and oy == 84 and wait == 0)
                 or (p == greenpath and mode == M_EYES)
                 or v == true)
 
-
-
-
+            // new direction vector set
             dx = nx;
             dy = ny;
 
@@ -893,10 +883,10 @@ loop
 
     end
 
+    // has framceount updated?
     if(fc < framecount)
         fc = framecount;
         if (mode == M_SCARED)
-
 
             if (scaredtime < 10)
                 flags = 0;
@@ -926,8 +916,6 @@ loop
 
 
     end
-    //x=tx;
-    //y=ty;
 
     if (mode == M_SCARED);
 
@@ -960,8 +948,8 @@ loop
 
 
 
+    // yield for correct speed based on "flen"
     frame(flen/speed);
-    //debug;
 end
 
 end
@@ -992,7 +980,6 @@ begin
 x=160;
 y=115;
 dangle = 90000;
-//delete_text(tid);
 
 loop
     if ( x!=ox or y!=oy or playing == false)
@@ -1005,72 +992,75 @@ loop
 
     if(playing)
 
-    odir = dir;
-
-    if(key(_up))
-        dir = 2;
-    end
-
-    if(key(_down))
-        dir = 0;
-    end
-
-    if(key(_left))
-        dir = 1;
-    end
-
-    if(key(_right))
-        dir = 3;
-    end
-    odangle = dangle;
-
-    switch(dir)
-        case 0:
-            nx = 0;
-            ny =2;
-            dangle = -90000;
-        end
-
-        case 1:
-            nx = -4;
-            ny = 0;
-            dangle = -180000;
-        end
-
-        case 2:
-            ny = -2;
-            nx = 0;
-            dangle = 90000;
-        end
-
-        case 3:
-            nx = 4;
-            ny = 0;
-            dangle = 180000;
-        end
-
-    end
-
-
-    i = map_get_pixel(file,hard_map,x+nx-1,y+ny-13);
-
-    if( i == 0 || i == greenpath)
-       nx = 0;
-       ny = 0;
-       dir = odir;
-    else
-        dx = nx;
-        dy = ny;
         odir = dir;
-    end
-    ox = x;
-    oy = y;
-    x+=dx;
-    y+=dy;
 
-    i = map_get_pixel(file,hard_map,x-1,y-13);
+        if(key(_up))
+            dir = 2;
+        end
 
-    if(i == 0 or i == greenpath)
+        if(key(_down))
+            dir = 0;
+        end
+
+        if(key(_left))
+            dir = 1;
+        end
+
+        if(key(_right))
+            dir = 3;
+        end
+
+        odangle = dangle;
+
+        switch(dir)
+
+            case 0:
+                nx = 0;
+                ny =2;
+                dangle = -90000;
+            end
+
+            case 1:
+                nx = -4;
+                ny = 0;
+                dangle = -180000;
+            end
+
+            case 2:
+                ny = -2;
+                nx = 0;
+                dangle = 90000;
+            end
+
+            case 3:
+                nx = 4;
+                ny = 0;
+                dangle = 180000;
+            end
+
+        end
+
+
+        i = map_get_pixel(file,hard_map,x+nx-1,y+ny-13);
+
+        if( i == 0 || i == greenpath)
+            nx = 0;
+            ny = 0;
+            dir = odir;
+        else
+            dx = nx;
+            dy = ny;
+            odir = dir;
+        end
+
+        ox = x;
+        oy = y;
+        x+=dx;
+        y+=dy;
+
+        i = map_get_pixel(file,hard_map,x-1,y-13);
+
+        if(i == 0 or i == greenpath)
             // and go through maze exits
             if (x<-16)
                 x=336;
@@ -1080,18 +1070,21 @@ loop
                 x=-16;
             end
 
-        x = ox;
-        y = oy;
-        dx= 0;
-        dy = 0;
-    end
+            x = ox;
+            y = oy;
+            dx= 0;
+            dy = 0;
+        end
 
     end
 
+    // set our animation graphic
     graph = dirs[dir]+anims[anim];
+
+    // and mirror if we need to
     flags = mflags[dir];
-    //map_put_pixel(file,100,x,y-13,1);
-    //write_int(0,0,4,0,offset i);
+
+    // regular speed
     frame;
 
 end
