@@ -24,7 +24,7 @@ global
 
 pal[256];
 
-level = 3;
+level = 2;
 map_base;
 path_map;
 hard_map;
@@ -255,6 +255,17 @@ begin
 // power pill graphic
 graph = 51;
 
+// Create a copy of the palette
+from pid = 0 to 255;
+    pal[pid] = pid;
+end
+
+// set palette id 171 (colour of the template ghost) to our ghost colour
+pal[map_get_pixel(file,graph,0,0)] = map_get_pixel(file,map_base,0,0);
+
+// convert our ghost sprite to use this palette
+convert_palette(file, graph, &pal);
+
 
 loop
     // alternate on / off
@@ -474,7 +485,7 @@ loop
 
 
             case M_EYES:
-                flen = 80;
+                flen = 75;
             end
         end
 
@@ -886,29 +897,47 @@ loop
     // has framceount updated?
     if(fc < framecount)
         fc = framecount;
+
+        // are ghosts running away?
         if (mode == M_SCARED)
 
+            // less than 10 ticks left
             if (scaredtime < 10)
+                // no flip
                 flags = 0;
 
+                // alt white/blue
                 if (graph == 11)
                     graph = 13;
                 else
                     graph = 11;
                 end
             else
+                // alt-flip
                 flags = 1 - flags;
             end
 
 
         else
-            flags = 1 - flags;
+            // alt-flip (regular ghost)
+            if (mode != M_EYES)
+                flags = 1 - flags;
+            end
         end
 
+        // any scared time left?
         if(scaredtime > 0)
+
+            // reduce it
             scaredtime --;
+
+            // all done?
             if(scaredtime == 0)
+
+                // return to regular ghost
                 graph = ograph;
+
+                // and chase player
                 mode = M_HUNT;
 
             end
@@ -917,36 +946,61 @@ loop
 
     end
 
+    // are we running away?
     if (mode == M_SCARED);
 
+        // check collision with player
         p = collision(type player);
+
+        // collision detected?
         if(p)
 
+            // same y axis?
             if(p.y == y)
+
+                // and less than 16 pixels apart on x axis
                 if(abs(p.x-x)<6)
+                    // eaten, turn to eyes
                     mode = M_EYES;
                 end
             else
 
+                // and less than 3 pixels on y axis?
                 if(abs(p.y-y)<3)
+
+                    // eaten - turn to eyes
                     mode = M_EYES;
                 end
             end
 
+
+            // did we get turned into eyes?
             if (mode == M_EYES)
+
+                // scared time is over
                 scaredtime = 0;
+
+                // turn to eyes graphic
                 graph = egraph;
+
+                // and pause temporarily
                 playing = 0;
+
+                // freeze player
                 signal(p,s_freeze);
+
+                // wait 10 frames;
                 frame(1000);
+
+                // unfreeze player
                 signal(p,s_wakeup);
+
+                // and resume game
                 playing = 1;
             end
 
         end
     end
-
-
 
     // yield for correct speed based on "flen"
     frame(flen/speed);
@@ -961,9 +1015,9 @@ process player()
 private
 anim=0;
 anims[] = (0,1,2,1);
-dirs[] = (1,4,1,4);
-mflags[] = (0,0,3,1);
-dir = 1;
+dirs[] = (4,1,4,1);
+mflags[] = (0,3,1,0);
+dir = DIR_LEFT;
 tid;
 i;
 ox;
@@ -974,65 +1028,82 @@ dy;
 nx;
 ny;
 odangle;
-
+intunnel;
 begin
 
 x=160;
 y=115;
 dangle = 90000;
-
+intunnel = 0;
 loop
+    // did we move, or demo / intro
     if ( x!=ox or y!=oy or playing == false)
+
+        // animate sprite
         anim++;
-        // get the current pixel under the player
+
+        // and wrap to zero
         if(anim == 4)
             anim = 0;
         end
     end
 
+    // are we playing? In control...
     if(playing)
 
+        // save original direction
         odir = dir;
 
+        // check keys
+
+        // up pressed?
         if(key(_up))
-            dir = 2;
+            dir = DIR_UP;
         end
 
+        // down pressed?
         if(key(_down))
-            dir = 0;
+
+            dir = DIR_DOWN;
         end
 
+        // left pressed?
         if(key(_left))
-            dir = 1;
+            dir = DIR_LEFT;
         end
 
+        // right pressed?
         if(key(_right))
-            dir = 3;
+            dir = DIR_RIGHT;
         end
 
+
+        // store the directional angle (used by ghost AI)
         odangle = dangle;
 
+        // which direction do we want to head
         switch(dir)
 
-            case 0:
+            // up
+            case DIR_DOWN:
                 nx = 0;
                 ny =2;
                 dangle = -90000;
             end
 
-            case 1:
+            case DIR_LEFT:
                 nx = -4;
                 ny = 0;
                 dangle = -180000;
             end
 
-            case 2:
-                ny = -2;
+            case DIR_UP:
                 nx = 0;
+                ny = -2;
                 dangle = 90000;
             end
 
-            case 3:
+            case DIR_RIGHT:
                 nx = 4;
                 ny = 0;
                 dangle = 180000;
@@ -1041,27 +1112,41 @@ loop
         end
 
 
+        // fetch the pixel from the hardness map under the player (offset by 1,13)
         i = map_get_pixel(file,hard_map,x+nx-1,y+ny-13);
 
+        // did we try to go to a green path?
         if( i == 0 || i == greenpath)
+            // invalidate new vectors
             nx = 0;
             ny = 0;
+
+            // resume previous direction
             dir = odir;
         else
+            // save x/y offset vectors
             dx = nx;
             dy = ny;
+
+            // save new direction
             odir = dir;
         end
 
+        // save x and y
         ox = x;
         oy = y;
+
+        // add directional vectors to x and y
         x+=dx;
         y+=dy;
 
+
+        // fetch the new pixel under the player
         i = map_get_pixel(file,hard_map,x-1,y-13);
 
+        // if we still tried to go on a green path, or empty space..
         if(i == 0 or i == greenpath)
-            // and go through maze exits
+            // and go through maze exits (not working yet)
             if (x<-16)
                 x=336;
             end
