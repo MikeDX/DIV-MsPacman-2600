@@ -22,9 +22,12 @@ M_EYES = 3;
 
 global
 
-pal[256];
+mult;
+difficulty = 0;
 
-level = 2;
+pal[256];
+score = 0;
+level = 0;
 map_base;
 path_map;
 hard_map;
@@ -65,9 +68,13 @@ path_map = map_base + 3;
 //Write your code here, make something amazing!
 set_mode(m320x240);
 load_fpg("mspacman.FPG");
+load_fnt("atarinum.fnt");
 
 // draw maze
 maze();
+
+// show difficulty fruit
+variant();
 
 // spawn player
 player();
@@ -77,6 +84,15 @@ from x = 0 to 3;
     ghost_ids[x] = ghost(x);
 end
 
+
+write_int(1,205,200,5,offset score);
+
+/*
+graph = 201;
+x = 160;
+y = 114;
+flags = 4;
+*/
 
 // wait for space to be pressed to start the game
 
@@ -100,6 +116,22 @@ end
 
 
 END
+
+process variant()
+
+begin
+
+x = 284;
+y = 189;
+graph = 30;
+
+loop
+
+frame;
+
+end
+
+end
 
 
 process maze()
@@ -161,7 +193,7 @@ until (x==102); // or max reached
 
 
 // our map graph
-graph = point_map ;
+graph = point_map;
 
 // location on screen
 x=160;
@@ -226,10 +258,12 @@ loop
         // close enough?
         if(pid.y == y)
             if(abs(pid.x-x)<4)
+                score+=10;
                 return;
             end
         else
             if(abs(pid.y-y)<2)
+                score+=10;
                 return;
             end
         end
@@ -284,7 +318,8 @@ loop
                 pid.scared = 1;
             end
         until (pid == 0);
-
+        score +=50;
+        mult = 200;
         return;
     end
 
@@ -646,6 +681,12 @@ loop
             end
 
 
+            // ensure tx and ty are within the maze boundary!
+
+            //tx = tx mod 320;
+
+            //ty = ty mod 171;
+
             // calculate which direction we want to proceed in.
 
 
@@ -976,6 +1017,8 @@ loop
 
             // did we get turned into eyes?
             if (mode == M_EYES)
+                score += mult;
+                mult = mult * 2;
 
                 // scared time is over
                 scaredtime = 0;
@@ -1243,12 +1286,19 @@ loop
         yanim = 0;
         py = y;
     end
+
     x+=dx;
     y+=dy;
-    d = map_get_pixel(file,hard_map,x-1,py-13);
-    map_put_pixel(file,point_map,x-1,y-13,redpath);
 
-    if ( d == bluepath or true )
+    d = map_get_pixel(file,hard_map,x-1,py-13);
+
+    //map_put_pixel(file,point_map,x-1,y-13,redpath);
+
+
+
+    if ( d != bluepath )
+        // don't do anything?
+    else
         delete_draw(all_drawing);
 
         //d = get_id(type player);
