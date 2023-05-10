@@ -26,6 +26,8 @@ mult;
 difficulty = 0;
 
 pal[256];
+dirs[4];
+
 score = 0;
 level = 0;
 map_base;
@@ -60,60 +62,74 @@ scared;
 
 BEGIN
 
-map_base = 100 + level * 4;
-point_map = map_base + 2;
-hard_map = map_base + 1;
-path_map = map_base + 3;
 
 //Write your code here, make something amazing!
 set_mode(m320x240);
 load_fpg("mspacman.FPG");
 load_fnt("atarinum.fnt");
 
-// draw maze
-maze();
-
-// show difficulty fruit
-variant();
-
-// spawn player
-player();
-
-// spawn ghosts
-from x = 0 to 3;
-    ghost_ids[x] = ghost(x);
-end
-
-
-write_int(1,205,200,5,offset score);
-
-/*
-graph = 201;
-x = 160;
-y = 114;
-flags = 4;
-*/
-
-// wait for space to be pressed to start the game
-
-while(!key(_space))
-    frame(1000);
-    framecount++;
-end
-
-// now playing
-playing = 1;
-
-
-// main loop
 loop
+    map_base = 100 + level * 4;
+    point_map = map_base + 2;
+    hard_map = map_base + 1;
+    path_map = map_base + 3;
 
-    framecount++;
-    frame(1000);
+    // draw maze
+    maze();
+
+    // show difficulty fruit
+    variant();
+
+    // spawn player
+    player();
+
+    // spawn ghosts
+    from x = 0 to 3;
+        ghost_ids[x] = ghost(x);
+    end
+
+
+    write_int(1,205,200,5,offset score);
+
+    /*
+    graph = 201;
+    x = 160;
+    y = 114;
+    flags = 4;
+    */
+
+    // wait for space to be pressed to start the game
+    playing = 0;
+    from scared = 0 to 3;
+    //while(!key(_space))
+        frame(1000);
+        framecount++;
+    end
+
+    // now playing
+    playing = 1;
+
+
+    // main loop
+    scared = 0;
+    while(get_id(type wafer) or get_id(type pill))
+        scared++;
+        if(scared == 10)
+            scared = 0;
+            framecount++;
+        end
+        frame;
+    end
+
+    while(get_id(type maze))
+        frame;
+    end
+
+    level++;
+
+    let_me_alone();
 
 end
-
-
 
 END
 
@@ -124,7 +140,6 @@ begin
 x = 284;
 y = 189;
 graph = 30;
-
 loop
 
 frame;
@@ -139,12 +154,16 @@ process maze()
 private
 px;
 py;
-
+p;
+i;
+j;
+fgraph;
 begin
 
 
 x=1;
 
+if (true)
 // spawn wafers
 repeat
     // get a point on the map
@@ -190,10 +209,22 @@ repeat
     x++;
 
 until (x==102); // or max reached
+end
 
 
 // our map graph
 graph = point_map;
+
+fgraph = new_map(320,170,160,85,0);
+map_put(file,fgraph,graph,160,85);
+from p = 0 to 255;
+    pal[p] = p;
+end
+i = map_get_pixel(file,fgraph,0,0);
+
+pal[i] = find_color(63,63,63);
+
+convert_palette(file,fgraph, offset pal);
 
 // location on screen
 x=160;
@@ -219,6 +250,22 @@ loop
     end
 
     frame;
+
+    if (!get_id(type pill) and !get_id(type wafer))
+        playing = 0;
+        p = graph;
+        from j = 0 to 3;
+            graph = fgraph;
+            frame(1000);
+            graph = p;
+            frame(1000);
+
+        end
+        unload_map(fgraph);
+        return;
+
+    end
+
 
 end
 
@@ -364,7 +411,6 @@ tx = 0;
 ty = 0;
 v = false;
 tries = 5;
-dirs[4];
 num_points;
 index;
 scaredtime = 0;
@@ -472,18 +518,20 @@ loop
             // and set how long we will be scared for
             scaredtime = 20;
 
-            // change direction
-            // 0 = 2, 1 = 3, 2 = 0, 3 = 1...
-            dir = (dir + 2) mod 4;
-
-            // and invert directional vector
-            dx = -dx;
-            dy = -dy;
-
             // and go slow
-
             flen = 150;
+
         end
+
+        // change direction
+        // 0 = 2, 1 = 3, 2 = 0, 3 = 1...
+        dir = (dir + 2) mod 4;
+
+        // and invert directional vector
+        dx = -dx;
+        dy = -dy;
+
+
     end
 
 
@@ -702,7 +750,7 @@ loop
             tries = 5;
 
             // examine each direction and discover if it is valid to
-            // moe that way.
+            // move that way.
             from p = 0 to 3;
                 dirs[p] = 0;
                 nx = x;
@@ -1030,7 +1078,7 @@ loop
                 playing = 0;
 
                 // freeze player
-                signal(p,s_freeze);
+                // signal(p,s_freeze);
 
                 // wait 10 frames;
                 frame(1000);
@@ -1058,7 +1106,6 @@ process player()
 private
 anim=0;
 anims[] = (0,1,2,1);
-dirs[] = (4,1,4,1);
 mflags[] = (0,3,1,0);
 dir = DIR_LEFT;
 tid;
@@ -1072,6 +1119,8 @@ nx;
 ny;
 odangle;
 intunnel;
+graphs[] = (4,1,4,1);
+
 begin
 
 x=160;
@@ -1207,7 +1256,7 @@ loop
     end
 
     // set our animation graphic
-    graph = dirs[dir]+anims[anim];
+    graph = graphs[dir]+anims[anim];
 
     // and mirror if we need to
     flags = mflags[dir];
@@ -1224,8 +1273,13 @@ end
 process fruit()
 
 private
+p;
+
 dx=1;
 dy=0;
+nx;
+ny;
+
 tx = 319;
 py=0;
 ty = 0;
@@ -1241,6 +1295,16 @@ yoffs[] = (
     1,0
 );
 
+xoffs[] = (
+    -1,-1,
+    -1,-1,
+    -1,-1,
+    1,1,
+    1,1,
+    1,1,
+    );
+
+
 d = 0;
 
 num_points;
@@ -1251,6 +1315,8 @@ struct points[100];
     y;
 end
 
+dir;
+
 begin
 delete_text(all_text);
 
@@ -1260,7 +1326,7 @@ write_int(0,0,28,0,offset yanim);
 
 
 graph = 20;
-x=8;
+x=0;
 
 y=0;
 while (map_get_pixel(file,hard_map,x,y)!=redpath)
@@ -1272,19 +1338,38 @@ ty = y;
 
 x=-11;
 
+if (rand(0,1))
+    x = 310;
+    dir = DIR_LEFT;
+    dx = -1;
+
+else
+    dir = DIR_RIGHT;
+    x = 0;
+end
+
+
 
 //fruit needs to bounce
 py = y;
-
+yanim = 0;
 loop
 
-    y+=yoffs[yanim];
-
-    yanim++;
-
-    if(yanim>=sizeof(yoffs))
-        yanim = 0;
-        py = y;
+    if ( dir == DIR_LEFT or dir == DIR_RIGHT)
+        y+=yoffs[yanim];
+        yanim++:
+        if(yanim>=sizeof(yoffs))
+            yanim = 0;
+            py = y;
+        end
+    else
+        //y+=dy;
+        y+=xoffs[yanim];
+        yanim++;
+        if(yanim>=sizeof(xoffs))
+            yanim = 0;
+            py = py + (dy * 12);
+        end
     end
 
     x+=dx;
@@ -1292,14 +1377,88 @@ loop
 
     d = map_get_pixel(file,hard_map,x-1,py-13);
 
-    //map_put_pixel(file,point_map,x-1,y-13,redpath);
+    map_put_pixel(file,point_map,x-1,py-13,redpath);
 
 
 
     if ( d != bluepath )
         // don't do anything?
     else
+
+    end
+
+    if ( d == bluepath)
+        yanim = 0;
+        //py = y + (ny * 12);
+        py = y;
+
         delete_draw(all_drawing);
+
+        // examine each direction and discover if it is valid to
+        // move that way.
+        from p = 0 to 3;
+            dirs[p] = 0;
+            nx = x;
+            ny = py;
+            switch(p)
+                case DIR_LEFT:
+                    nx--;
+                end
+
+
+                case DIR_UP:
+                    ny--;
+                end
+
+                case DIR_RIGHT:
+                    nx++;
+                end
+
+                case DIR_DOWN:
+                    ny++;
+                end
+            end
+
+            if(map_get_pixel(file,hard_map,nx-1,ny-13) == 0)
+                dirs[p]=1;
+            end
+        end
+
+
+        // mark "reverse" as invalid
+        p = (dir + 2) mod 4;
+        dirs[p] = 2;
+
+        // get next direction
+
+        dir = -1;
+        while (dir == -1)
+            p = rand(0,3);
+            if (dirs[p] == 0)
+                dir = p;
+            end
+        end
+
+        dx = 0;
+        dy = 0;
+        switch (dir)
+            case DIR_UP:
+                dy = -1;
+            end
+
+            case DIR_DOWN:
+                dy = 1;
+            end
+
+            case DIR_LEFT:
+                dx = -1;
+            end
+
+            case DIR_RIGHT:
+                dx = 1;
+            end
+        end
+
 
         //d = get_id(type player);
         //x = d.x-1;
@@ -1331,11 +1490,14 @@ loop
 
             draw(1,24,15,0,x,y,points[0].x+1,points[0].y+13);
         end
-       debug;
+       //debug;
 
     end
 
 
+    if(out_region(id,0))
+        return;
+    end
 
     frame;
 
